@@ -73,6 +73,28 @@ const container = {
   minHeight: "100vh",
 };
 
+// eslint-disable-next-line no-unused-vars
+const styles = {
+ filterBar: {
+  display: "flex",
+  gap: 8,
+  overflowX: "auto",
+  paddingBottom: 5,
+  marginTop: 10,
+},
+
+  chip: {
+    padding: "8px 14px",
+    borderRadius: 20,
+    border: "1px solid #ef4444",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    fontSize: 13,
+    background: "#fff",
+    transition: "0.2s",
+  },
+};
+
 const header = {
   display: "flex",
   alignItems: "center",

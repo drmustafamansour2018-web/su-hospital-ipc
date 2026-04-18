@@ -1,9 +1,10 @@
+/* eslint-disable no-unused-vars */
+import { departments } from "../data/departments";
 import { useEffect, useState } from "react";
 import { ref, onValue, push } from "firebase/database";
 import { db } from "../firebase/config";
 import PatientCard from "../components/PatientCard";
 import KPI from "../components/KPI";
-
 /* ================= RISK ENGINE ================= */
 function calculateRisk(patient) {
   let score = 0;
@@ -16,8 +17,17 @@ function calculateRisk(patient) {
   const highRisk = ["COVID-19", "Sepsis", "Tuberculosis", "Pneumonia"];
   if (highRisk.includes(patient.disease)) score += 40;
 
-  if (patient.department?.includes("ICU")) score += 25;
+const highRiskDepartments = [
+  "ICU_ADULT",
+  "PICU",
+  "CCU",
+  "STROKE_UNIT",
+  "NICU"
+];
 
+if (highRiskDepartments.includes(patient.department)) {
+  score += 30;
+}
   return Math.min(score, 100);
 }
 
@@ -26,6 +36,8 @@ export default function Dashboard() {
   const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedDept, setSelectedDept] = useState("all");
+  const [deptSearch, setDeptSearch] = useState("");
+  
 
   const [showAdd, setShowAdd] = useState(false);
   const [step, setStep] = useState(1);
@@ -52,6 +64,7 @@ export default function Dashboard() {
       const data = snapshot.val();
 
       setPatients(
+        
         data
           ? Object.entries(data).map(([id, value]) => ({
               id,
@@ -63,8 +76,9 @@ export default function Dashboard() {
   }, []);
 
   /* ================= KPIs ================= */
-  const critical = patients.filter((p) => p.riskScore > 70).length;
-
+const critical = patients.filter(
+  (p) => p.riskScore >= 70 || typeof p.department === "string" && p.department.includes("ICU")
+).length;
   const avgRisk =
     patients.length > 0
       ? (
@@ -113,6 +127,23 @@ export default function Dashboard() {
     );
 
   /* ================= UI ================= */
+  // eslint-disable-next-line no-unused-vars
+  const filteredDepartments = departments.filter((d) =>
+  (d.name + (d.abbr || ""))
+    .toLowerCase()
+    .includes(deptSearch.toLowerCase())
+);
+  const groupedDepartments = departments.reduce((acc, dept) => {
+  const key = dept.category;
+
+  if (!acc[key]) {
+    acc[key] = [];
+  }
+
+  acc[key].push(dept);
+
+  return acc;
+}, {});
   return (
     <div style={styles.page}>
       <h2 style={styles.title}>🏥 IPC RED MEDICAL DASHBOARD</h2>
@@ -140,17 +171,42 @@ export default function Dashboard() {
           onChange={(e) => setSearch(e.target.value)}
           style={styles.input}
         />
+<input
+  placeholder="اكتب أول حرف..."
+  value={deptSearch}
+  onChange={(e) => {
+    const value = e.target.value;
+    setDeptSearch(value);
 
-        <select
-          value={selectedDept}
-          onChange={(e) => setSelectedDept(e.target.value)}
-          style={styles.input}
-        >
-          <option value="all">All Departments</option>
-          <option value="ICU">ICU</option>
-          <option value="ER">ER</option>
-        </select>
+    // 🔥 هنا السحر
+    const match = departments.find((d) =>
+      (d.name + (d.abbr || ""))
+        .toLowerCase()
+        .startsWith(value.toLowerCase())
+    );
 
+    if (match) {
+      setSelectedDept(match.id);
+    }
+  }}
+  style={styles.input}
+/>
+       <select
+  value={selectedDept}
+  onChange={(e) => setSelectedDept(e.target.value)}
+  style={styles.input}
+>
+  <option value="all">All Departments</option>
+
+<option value="all">كل الأقسام</option>
+
+{filteredDepartments.map((d) => (
+  <option key={d.id} value={d.id}>
+    {d.name}
+  </option>
+))}
+</select>
+        
         <button onClick={() => setShowAdd(true)} style={styles.addBtn}>
           + Add Patient
         </button>
@@ -189,18 +245,46 @@ export default function Dashboard() {
 
             {/* STEP 2 */}
             {step === 2 && (
-              <div>
-                <input name="department" placeholder="Department" onChange={handleChange} style={styles.inputFull} />
-                <input name="disease" placeholder="Disease" onChange={handleChange} style={styles.inputFull} />
+  <div>
+  <select
+  name="department"
+  value={form.department}
+  onChange={handleChange}
+  style={styles.inputFull}
+>
+  <option value="">Select Department</option>
 
-                <div style={styles.risk}>
-                  🔥 Risk Preview: {calculateRisk(form)}%
-                </div>
+  {Object.entries(groupedDepartments).map(([category, items]) => (
+    <optgroup key={category} label={category.toUpperCase()}>
+      {items.map((d) => (
+        <option key={d.id} value={d.id}>
+          {d.name} ({d.abbr})
+        </option>
+      ))}
+    </optgroup>
+  ))}
+</select>
 
-                <button onClick={() => setStep(1)} style={styles.btn}>Back</button>
-                <button onClick={() => setStep(3)} style={styles.nextBtn}>Next</button>
-              </div>
-            )}
+    <input
+      name="disease"
+      placeholder="Disease"
+      onChange={handleChange}
+      style={styles.inputFull}
+    />
+
+    <div style={styles.risk}>
+      🔥 Risk Preview: {calculateRisk(form)}%
+    </div>
+
+    <button onClick={() => setStep(1)} style={styles.btn}>
+      Back
+    </button>
+
+    <button onClick={() => setStep(3)} style={styles.nextBtn}>
+      Next
+    </button>
+  </div>
+)}
 
             {/* STEP 3 */}
             {step === 3 && (

@@ -1,75 +1,144 @@
-/* eslint-disable no-undef */
 import { useState } from "react";
-import { addPatientService } from "../services/patientService";
+import { ref, push } from "firebase/database";
+import { db } from "../firebase/config";
 
-export default function AddPatient() {
-const navigate = useNavigate();
-
+export default function AddPatientPanel({ onClose }) {
   const [form, setForm] = useState({
     name: "",
     age: "",
-    gender: "",
-    phone: "",
-    nationalId: "",
-    address: "",
-    department: "",
+    gender: "Male",
+    id: "",
+    department: "ICU",
     disease: "",
-    ticketNo: "",
+    symptoms: "",
   });
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  // ================= RISK ENGINE (simple version) =================
+  const calculateRisk = () => {
+    let risk = 10;
+
+    if (form.age > 60) risk += 25;
+    if (form.department === "ICU") risk += 20;
+    if (form.disease === "Pneumonia") risk += 25;
+    if (form.disease === "COVID-19") risk += 35;
+
+    return Math.min(risk, 100);
   };
 
-  const handleSubmit = async () => {
-    try {
-      await addPatientService(form);
-      alert("Patient added successfully");
+  const risk = calculateRisk();
 
-      navigate("/"); // رجوع للداشبورد
-    } catch (err) {
-      alert(err.message);
-    }
+  const getColor = () => {
+    if (risk < 40) return "🟢";
+    if (risk < 70) return "🟡";
+    return "🔴";
+  };
+
+  // ================= SAVE =================
+  const handleSave = () => {
+    push(ref(db, "patients"), {
+      ...form,
+      age: Number(form.age),
+      riskScore: risk,
+      status: "active",
+      hai: risk > 70,
+      createdAt: new Date().toISOString(),
+    });
+
+    onClose();
   };
 
   return (
-    <div style={styles.container}>
+    <div style={styles.overlay}>
+      <div style={styles.panel}>
 
-      <h2 style={{ marginBottom: 20 }}>🏥 Add New Patient</h2>
+        {/* HEADER */}
+        <div style={styles.header}>
+          <h2>🏥 Add New Patient</h2>
+          <button onClick={onClose}>✕</button>
+        </div>
 
-      <div style={styles.form}>
+        <div style={styles.body}>
 
-        <input name="name" placeholder="Full Name" onChange={handleChange} />
-        <input name="age" placeholder="Age" onChange={handleChange} />
+          {/* LEFT INPUTS */}
+          <div style={styles.left}>
 
-        <select name="gender" onChange={handleChange}>
-          <option value="">Gender</option>
-          <option>Male</option>
-          <option>Female</option>
-        </select>
+            <input
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
 
-        <input name="phone" placeholder="Phone" onChange={handleChange} />
-        <input name="nationalId" placeholder="National ID" onChange={handleChange} />
-        <input name="address" placeholder="Address" onChange={handleChange} />
+            <input
+              placeholder="Age"
+              value={form.age}
+              onChange={(e) => setForm({ ...form, age: e.target.value })}
+            />
 
-        <select name="department" onChange={handleChange}>
-          <option value="">Department</option>
-          <option>ICU</option>
-          <option>ER</option>
-          <option>CCU</option>
-        </select>
+            <select
+              value={form.gender}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+            >
+              <option>Male</option>
+              <option>Female</option>
+            </select>
 
-        <select name="disease" onChange={handleChange}>
-          <option value="">Disease</option>
-          <option>COVID-19</option>
-          <option>Sepsis</option>
-          <option>Pneumonia</option>
-          <option>Meningitis</option>
-        </select>
+            <input
+              placeholder="National ID"
+              value={form.id}
+              onChange={(e) => setForm({ ...form, id: e.target.value })}
+            />
 
-        <input name="ticketNo" placeholder="Ticket No" onChange={handleChange} />
+            <select
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+            >
+              <option>ICU</option>
+              <option>ER</option>
+              <option>CCU</option>
+              <option>LAB</option>
+            </select>
 
-        <button onClick={handleSubmit} style={styles.button}>
+            <select
+              value={form.disease}
+              onChange={(e) => setForm({ ...form, disease: e.target.value })}
+            >
+              <option value="">Disease</option>
+              <option>Pneumonia</option>
+              <option>COVID-19</option>
+              <option>Sepsis</option>
+            </select>
+
+          </div>
+
+          {/* RIGHT RISK PANEL */}
+          <div style={styles.right}>
+
+            <h3>⚡ Live Risk Preview</h3>
+
+            <div style={styles.riskBox}>
+              <h1>
+                {getColor()} {risk}
+              </h1>
+              <p>
+                {risk < 40
+                  ? "Low Risk"
+                  : risk < 70
+                  ? "Medium Risk"
+                  : "High Risk"}
+              </p>
+            </div>
+
+            <div style={styles.suggestion}>
+              {risk > 70
+                ? "⚠ ICU recommended immediately"
+                : "Patient stable"}
+            </div>
+
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <button style={styles.saveBtn} onClick={handleSave}>
           Save Patient
         </button>
 
@@ -78,26 +147,71 @@ const navigate = useNavigate();
   );
 }
 
+// ================= STYLES =================
 const styles = {
-  container: {
-    padding: 30,
-    maxWidth: 600,
-    margin: "auto",
-    fontFamily: "Arial",
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+     direction: "rtl",
   },
 
-  form: {
+  panel: {
+    width: "800px",
+    background: "#fff",
+    borderRadius: 12,
+    padding: 20,
+  },
+
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+
+  body: {
+    display: "flex",
+    gap: 20,
+  },
+
+  left: {
+    flex: 1,
     display: "flex",
     flexDirection: "column",
-    gap: 12,
+    gap: 10,
   },
 
-  button: {
+  right: {
+    flex: 1,
+    background: "#f5f6fa",
+    padding: 15,
+    borderRadius: 10,
+  },
+
+  riskBox: {
+    textAlign: "center",
+    padding: 20,
+    borderRadius: 10,
+    background: "#fff",
+  },
+
+  suggestion: {
+    marginTop: 15,
+    padding: 10,
+    background: "#fff",
+    borderRadius: 10,
+  },
+
+  saveBtn: {
+    width: "100%",
+    marginTop: 20,
     padding: 12,
-    background: "#e74c3c",
+    background: "#E53846",
     color: "#fff",
     border: "none",
     borderRadius: 8,
-    cursor: "pointer",
   },
 };
