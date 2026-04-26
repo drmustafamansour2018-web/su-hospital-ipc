@@ -1,12 +1,12 @@
-/* 1. أولاً: جميع الاستدعاءات الخارجية (Imports) في البداية تماماً */
+/* 1. الاستدعاءات الخارجية (Imports) */
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
-/* 2. ثانياً: منطقة الإعدادات (Theme) الخاصة بـ Tailwind v4 */
+/* 2. منطقة الإعدادات (Theme) - Tailwind v4 */
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
-  /* ألوان SU Hospital */
+  /* ألوان الهوية المؤسسية لمستشفى سوهاج */
   --color-su-primary: #2563eb;
   --color-su-secondary: #64748b;
   --color-su-accent: #0ea5e9;
@@ -16,29 +16,47 @@
   --color-pdf-text: #1e293b;
 }
 
-/* 3. ثالثاً: التنسيقات الأساسية (Base Styles) */
+/* 3. التنسيقات الأساسية (Base Styles) */
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    /* التنسيق النهاري الافتراضي */
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-300;
     font-family: var(--font-sans);
     color-scheme: light;
   }
 
+  /* تطبيق الوضع الليلي عند تفعيل كلاس .dark على الـ HTML */
+  .dark body {
+    @apply bg-slate-950 text-slate-50;
+    color-scheme: dark;
+  }
+
   h1, h2, h3, h4 {
-    @apply font-bold tracking-tight text-slate-900;
+    @apply font-bold tracking-tight text-slate-900 transition-colors duration-300;
+  }
+
+  .dark h1, .dark h2, .dark h3, .dark h4 {
+    @apply text-white;
   }
 }
 
-/* 4. رابعاً: التنسيقات المخصصة (Utilities) */
+/* 4. التنسيقات المخصصة (Utilities) */
 @layer utilities {
+  /* كارت زجاجي يتفاعل مع الوضعين */
   .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm;
+    @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white/20 dark:border-slate-800 shadow-sm transition-all;
   }
 
+  /* ثابت للطباعة فقط لضمان جودة تقارير الـ PDF */
   .pdf-safe-card {
     background-color: #ffffff !important;
     color: #1e293b !important;
     border: 1px solid #e2e8f0 !important;
     box-shadow: none !important;
+  }
+
+  /* تنسيق خاص للمدخلات (Inputs) في الوضعين */
+  .su-input {
+    @apply w-full p-4 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl border-none outline-none focus:ring-2 focus:ring-blue-500 transition-all;
   }
 }

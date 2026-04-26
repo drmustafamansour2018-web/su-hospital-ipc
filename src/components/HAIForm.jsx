@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { db, ref, onValue, push, set } from '../firebase/config';
+import { db, ref, onValue, push, set, remove } from '../firebase/config';
 import BundleCheck from '../components/BundleCheck';
 
 const HAIForm = () => {
   const [patients, setPatients] = useState([]);
+  const [haiRecords, setHaiRecords] = useState([]); 
   const [showBundle, setShowBundle] = useState(false);
   const [step, setStep] = useState(1); 
   const [selectedSymptoms, setSelectedSymptoms] = useState({});
@@ -16,7 +17,7 @@ const HAIForm = () => {
     admissionDate: '', 
     department: '',
     wbc: '', 
-    crp: '', // الحقل الجديد
+    crp: '', 
   });
 
   const criteria = {
@@ -41,6 +42,40 @@ const HAIForm = () => {
     ]
   };
 
+  // --- دالة حذف سجل واحد ---
+  const handleDelete = (id) => {
+    const password = prompt("برجاء إدخال الرقم السري للحذف:");
+    if (password === "1234") {
+      if (window.confirm("هل أنت متأكد من حذف سجل هذه الحالة نهائياً؟")) {
+        remove(ref(db, `hai_events/${id}`))
+          .then(() => {
+            setHaiRecords(prev => prev.filter(record => record.id !== id));
+            alert("✅ تم حذف السجل بنجاح");
+          })
+          .catch((err) => alert("❌ خطأ أثناء الحذف: " + err.message));
+      }
+    } else if (password !== null) {
+      alert("⚠️ الرقم السري خاطئ! لا تملك صلاحية الحذف.");
+    }
+  };
+
+  // --- دالة حذف كل السجلات (جديد) ---
+  const handleDeleteAll = () => {
+    const password = prompt("⚠️ تنبيه: سيتم حذف جميع التقارير نهائياً. أدخل الرقم السري:");
+    if (password === "1234") {
+      if (window.confirm("هل أنت متأكد تماماً من إفراغ السجل بالكامل؟ لا يمكن التراجع عن هذه الخطوة.")) {
+        remove(ref(db, 'hai_events'))
+          .then(() => {
+            setHaiRecords([]);
+            alert("✅ تم إفراغ السجل بالكامل بنجاح");
+          })
+          .catch((err) => alert("❌ خطأ أثناء الحذف الشامل: " + err.message));
+      }
+    } else if (password !== null) {
+      alert("⚠️ الرقم السري خاطئ!");
+    }
+  };
+
   useEffect(() => {
     const patientsRef = ref(db, 'patients');
     onValue(patientsRef, (snapshot) => {
@@ -48,6 +83,18 @@ const HAIForm = () => {
       if (data) {
         const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
         setPatients(list);
+      }
+    });
+
+    const haiRef = ref(db, 'hai_events');
+    onValue(haiRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        const filtered = list.filter(item => item.patientId).reverse();
+        setHaiRecords(filtered);
+      } else {
+        setHaiRecords([]); // التعامل مع حالة السجل الفارغ بعد الحذف الشامل
       }
     });
   }, []);
@@ -71,36 +118,26 @@ const HAIForm = () => {
 
   const getAnalysis = () => {
     const symptomsCount = Object.values(selectedSymptoms).filter(v => v === true).length;
-    // التحقق من المؤشرات الحيوية (WBC > 12000 أو CRP > 10)
     const hasHighMarkers = parseInt(formData.wbc) > 12000 || parseInt(formData.crp) > 10;
-
     const admission = new Date(formData.admissionDate);
     const onset = new Date(formData.detectionDate);
     const diffHours = (onset - admission) / (1000 * 60 * 60);
 
-    // 1. منطق العدوى المجتمعية
     if (diffHours < 48) {
       return { 
         type: 'COMMUNITY',
         msg: "🏠 عدوى مجتمعية (Community)", 
-        rec: "الأعراض ظهرت قبل مرور 48 ساعة. تُصنف عدوى خارجية ولا تُحسب كعدوى مكتسبة من المستشفى.",
+        rec: "الأعراض ظهرت قبل مرور 48 ساعة. تُصنف عدوى خارجية ولا تُحسب كـ HAI.",
         color: "bg-blue-50 border-blue-200 text-blue-700"
       };
     }
 
-    // 2. تحديد التوصية المخصصة بناءً على نوع العدوى
     let specificRec = "يُنصح بسحب المزرعة فوراً وإبلاغ الطبيب.";
-    if (formData.infectionType === 'VAP') {
-      specificRec = "🚨 توصية: اطلب أشعة صدر (X-Ray) عاجلة، فحص غازات دم (ABG)، وسحب عينة بلغم للمزرعة.";
-    } else if (formData.infectionType === 'CAUTI') {
-      specificRec = "🚨 توصية: اطلب تحليل بول كامل (Urine Analysis) ومزرعة بول، وراجع ضرورة استمرار القسطرة.";
-    } else if (formData.infectionType === 'CLABSI') {
-      specificRec = "🚨 توصية: اسحب مزرعة دم (Blood Culture) مزدوجة (من القسطرة ومن وريد طرفي).";
-    } else if (formData.infectionType === 'SSI') {
-      specificRec = "🚨 توصية: طلب عرض جراحة لتقييم الجرح، واطلب مسحة (Swab) أو عينة صديد للمعمل.";
-    }
+    if (formData.infectionType === 'VAP') specificRec = "🚨 توصية: اطلب أشعة صدر عاجلة، فحص غازات دم، وسحب بلغم.";
+    else if (formData.infectionType === 'CAUTI') specificRec = "🚨 توصية: اطلب تحليل ومزرعة بول، وراجع ضرورة القسطرة.";
+    else if (formData.infectionType === 'CLABSI') specificRec = "🚨 توصية: اسحب مزرعة دم مزدوجة (من القسطرة ومن وريد طرفي).";
+    else if (formData.infectionType === 'SSI') specificRec = "🚨 توصية: طلب عرض جراحة لتقييم الجرح وسحب مسحة.";
 
-    // 3. منطق الاشتباه (HAI)
     if (symptomsCount >= 2 || (symptomsCount === 1 && hasHighMarkers)) {
       return { 
         type: 'HAI',
@@ -113,7 +150,7 @@ const HAIForm = () => {
     return { 
       type: 'OBSERVATION',
       msg: "⚠️ حالة تحت الملاحظة", 
-      rec: "المعايير غير مكتملة حالياً. استمر في مراقبة العلامات الحيوية وإعادة الفحص بعد 12 ساعة.",
+      rec: "المعايير غير مكتملة حالياً. استمر في المراقبة وإعادة الفحص.",
       color: "bg-amber-50 border-amber-200 text-amber-700"
     };
   };
@@ -130,7 +167,7 @@ const HAIForm = () => {
         analysisResult: analysis.msg,
         timestamp: new Date().toISOString(),
       });
-      alert("✅ تم تسجيل تقرير الاشتباه والتوصيات بنجاح");
+      alert("✅ تم تسجيل التقرير النهائي بنجاح");
       setStep(1); setShowBundle(false); setSelectedSymptoms({});
       setFormData({ ...formData, infectionType: '', organism: '', patientId: '', wbc: '', crp: '' });
     } catch (err) { alert("خطأ: " + err.message); }
@@ -150,33 +187,26 @@ const HAIForm = () => {
       {/* اختيار المريض */}
       <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 mb-8">
         <label className="text-xs font-black text-slate-400 mr-4 mb-2 block uppercase">تحديد مريض المتابعة</label>
-        <select 
-          className="w-full px-6 py-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700"
-          onChange={handlePatientChange}
-          value={formData.patientId}
-        >
+        <select className="w-full px-6 py-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700"
+          onChange={handlePatientChange} value={formData.patientId}>
           <option value="">-- ابحث في قائمة القسم --</option>
           {patients.map(p => <option key={p.id} value={p.id}>{p.name} ({p.department})</option>)}
         </select>
       </div>
 
-      {/* مرحلة حزمة الوقاية */}
+      {/* الخطوات */}
       {formData.patientId && showBundle && (
         <div className="space-y-6 animate-in slide-in-from-top duration-500">
            <BundleCheck patientId={formData.patientId} patientName={formData.patientName} />
-           <button 
-             onClick={() => setShowBundle(false)}
-             className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-orange-600 transition-all"
-           >
+           <button onClick={() => setShowBundle(false)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-orange-600 transition-all">
              تم تطبيق الوقاية.. انتقال لتقييم الاشتباه ←
            </button>
         </div>
       )}
 
-      {/* المساعد الذكي */}
       {formData.patientId && !showBundle && (
         <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-orange-100 space-y-8 animate-in zoom-in">
-          
+          {/* خطوات التقييم (نفس الكود الخاص بك) */}
           {step === 1 && (
             <div className="space-y-6 text-center">
               <h3 className="text-xl font-black">ما هو مصدر الشك الإكلينيكي؟</h3>
@@ -197,7 +227,6 @@ const HAIForm = () => {
                 <button onClick={() => setStep(1)} className="text-orange-600 font-bold underline text-sm pr-2">تغيير النوع</button>
                 <span className="bg-orange-600 text-white px-6 py-1 rounded-full font-black">{formData.infectionType}</span>
               </div>
-              
               <div className="space-y-3">
                 {criteria[formData.infectionType].map(item => (
                   <label key={item.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:bg-orange-50">
@@ -207,27 +236,12 @@ const HAIForm = () => {
                   </label>
                 ))}
               </div>
-
-              {/* المؤشرات الحيوية والتحاليل */}
-              <div className="pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block font-black text-slate-400 text-xs mb-2 mr-2">تاريخ بدء الأعراض</label>
-                  <input type="date" className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none"
-                    value={formData.detectionDate} onChange={(e) => setFormData({...formData, detectionDate: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block font-black text-slate-400 text-xs mb-2 mr-2">WBCs (كرات البيضاء)</label>
-                  <input type="number" placeholder="مثلاً: 14000" className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none border-2 border-transparent focus:border-blue-500"
-                    onChange={(e) => setFormData({...formData, wbc: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block font-black text-slate-400 text-xs mb-2 mr-2">CRP (بروتين سي)</label>
-                  <input type="number" placeholder="مثلاً: 24" className="w-full p-4 bg-slate-50 rounded-xl font-bold outline-none border-2 border-transparent focus:border-red-400"
-                    onChange={(e) => setFormData({...formData, crp: e.target.value})} />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+                <input type="date" className="p-4 bg-slate-50 rounded-xl font-bold" value={formData.detectionDate} onChange={(e) => setFormData({...formData, detectionDate: e.target.value})} />
+                <input type="number" placeholder="WBC" className="p-4 bg-slate-50 rounded-xl font-bold" onChange={(e) => setFormData({...formData, wbc: e.target.value})} />
+                <input type="number" placeholder="CRP" className="p-4 bg-slate-50 rounded-xl font-bold" onChange={(e) => setFormData({...formData, crp: e.target.value})} />
               </div>
-
-              <button onClick={() => setStep(3)} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-lg">تحليل الحالة واستعراض التوصية ←</button>
+              <button onClick={() => setStep(3)} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-lg">تحليل الحالة ←</button>
             </div>
           )}
 
@@ -235,22 +249,68 @@ const HAIForm = () => {
             <div className="space-y-6">
                <div className={`p-8 rounded-[2.5rem] border-2 shadow-inner ${getAnalysis().color}`}>
                   <h3 className="text-xl font-black mb-2">{getAnalysis().msg}</h3>
-                  <p className="font-bold text-slate-700 leading-relaxed italic underline underline-offset-4">
-                    {getAnalysis().rec}
-                  </p>
+                  <p className="font-bold text-slate-700 leading-relaxed italic underline underline-offset-4">{getAnalysis().rec}</p>
                </div>
-
-               <div className="space-y-4">
-                  <label className="block text-sm font-black text-slate-400 mr-4">الميكروب (في حال ظهور المزرعة)</label>
-                  <input type="text" placeholder="مثلاً: Klebsiella pneumoniae" className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none outline-none ring-2 ring-slate-100 focus:ring-orange-500 font-bold"
-                    onChange={(e) => setFormData({...formData, organism: e.target.value})} />
-                  <button onClick={handleSubmit} className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xl hover:bg-orange-600 transition-all shadow-2xl">حفظ التقرير النهائي 💾</button>
-                  <button onClick={() => setStep(2)} className="w-full text-slate-400 font-bold text-sm underline text-center block">تعديل البيانات</button>
-               </div>
+               <input type="text" placeholder="الميكروب..." className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" 
+                 onChange={(e) => setFormData({...formData, organism: e.target.value})} />
+               <button onClick={handleSubmit} className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xl">حفظ التقرير النهائي 💾</button>
+               <button onClick={() => setStep(2)} className="w-full text-slate-400 font-bold text-sm text-center block">تعديل البيانات</button>
             </div>
           )}
         </div>
       )}
+
+      {/* ========================================== */}
+      {/* قسم سجل التقارير المحدث مع "حذف الكل" */}
+      {/* ========================================== */}
+      <div className="mt-16 space-y-6">
+        <div className="flex justify-between items-center border-r-4 border-blue-600 pr-3 mr-2">
+          <h3 className="text-xl font-black text-slate-800">
+             سجل التقارير المسجلة مؤخراً 📋
+          </h3>
+          {/* زر حذف الكل (يظهر فقط عند وجود سجلات) */}
+          {haiRecords.length > 0 && (
+            <button 
+              onClick={handleDeleteAll}
+              className="text-xs font-black text-red-500 bg-red-50 px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+            >
+              🗑️ مسح كل السجل
+            </button>
+          )}
+        </div>
+
+        <div className="grid gap-4">
+          {haiRecords.map((record) => (
+            <div key={record.id} className="bg-white p-5 rounded-[2.5rem] shadow-sm border border-slate-100 flex justify-between items-center hover:shadow-md transition-all">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-orange-100 text-orange-600 text-[10px] px-3 py-0.5 rounded-full font-black uppercase">
+                    {record.infectionType}
+                  </span>
+                  <span className="text-slate-400 text-[10px]">
+                    {new Date(record.timestamp).toLocaleDateString('ar-EG')}
+                  </span>
+                </div>
+                <h4 className="font-black text-slate-800 text-lg">{record.patientName}</h4>
+                <p className="text-sm text-slate-500 font-bold">{record.analysisResult}</p>
+              </div>
+
+              <button 
+                onClick={() => handleDelete(record.id)}
+                className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
+              >
+                <span className="text-xl">🗑️</span>
+              </button>
+            </div>
+          ))}
+          {haiRecords.length === 0 && (
+            <div className="text-center py-12 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
+               <p className="text-slate-400 font-bold">لا توجد سجلات مسجلة حالياً</p>
+            </div>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 };
