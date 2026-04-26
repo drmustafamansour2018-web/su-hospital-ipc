@@ -1,3 +1,5 @@
+/* --- تنسيقات الموقع الأساسية --- */
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -180,5 +182,35 @@
   &::after {
     right: 0;
     border-right-color: var(--border);
+  }
+}
+
+/* --- تنسيقات تحسين الطباعة والـ PDF --- */
+
+/* إخفاء العناصر التي تحمل كلاس no-pdf تلقائياً */
+.no-pdf {
+  display: none !important;
+}
+
+/* تحسين شكل الكروت في المتصفح لضمان ثبات الألوان */
+[id^="audit-card-"] {
+  color-scheme: light;
+  /* منع تقطيع العناصر أثناء تحويلها لـ Canvas */
+  break-inside: avoid;
+  background-color: #ffffff;
+}
+
+/* تحسين الطباعة في حالة ضغط المستخدم Ctrl+P يدوياً */
+@media print {
+  body {
+    background: white !important;
+  }
+  .no-pdf, button {
+    display: none !important;
+  }
+  [id^="audit-card-"] {
+    border: 1px solid #eee !important;
+    box-shadow: none !important;
+    padding: 20px !important;
   }
 }

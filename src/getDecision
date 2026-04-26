@@ -1,0 +1,74 @@
+// src/core/getDecision.js
+
+export default function getDecision(patient) {
+  if (!patient) {
+    return { risk: 0, level: "Unknown", action: "No data available" };
+  }
+
+  let risk = 0;
+  let riskFactors = []; // لتوضيح أسباب الخطورة للمستخدم
+
+  // 1. العمر (Age Factor)
+  const age = Number(patient.age || 0);
+  if (age > 65 || age < 5) { // الأطفال وكبار السن أكثر عرضة للعدوى
+    risk += 20;
+    riskFactors.push("Age vulnerability");
+  }
+
+  // 2. الأمراض المعدية (Infectious Diseases) - استخدمنا Zod سابقاً لضمان وجودها
+  const highRiskDiseases = ["COVID-19", "Sepsis", "Tuberculosis", "Pneumonia", "MRSA"];
+  if (highRiskDiseases.includes(patient.disease)) {
+    risk += 40;
+    riskFactors.push("High-risk infectious disease");
+  }
+
+  // 3. القسم (Department Risk)
+  const dept = patient.department?.toString().toUpperCase() || "";
+  const criticalDepts = {
+    "ICU": 30,
+    "OR": 25,       // غرفة العمليات
+    "NEONATAL": 30, // حضانات الأطفال
+    "DIALYSIS": 20  // غسيل الكلى
+  };
+  
+  if (criticalDepts[dept]) {
+    risk += criticalDepts[dept];
+    riskFactors.push(`Critical Department: ${dept}`);
+  }
+
+  // 4. الأدوات المخترقة للجسم (Invasive Devices) - "سر قوة iPC"
+  // هذه البيانات يجب أن تأتي من الـ PatientForm
+  if (patient.hasVentilator) { risk += 35; riskFactors.push("Ventilator (VAP Risk)"); }
+  if (patient.hasCatheter) { risk += 25; riskFactors.push("Urinary Catheter (CAUTI Risk)"); }
+  if (patient.hasCentralLine) { risk += 30; riskFactors.push("Central Line (CLABSI Risk)"); }
+
+  // 5. ضبط النتيجة النهائية (Normalize)
+  risk = Math.min(risk, 100);
+
+  // 6. تحديد المستوى والأكشن بناءً على معايير مكافحة العدوى
+  let level = "Low";
+  let action = "";
+  let color = "green"; // سنحتاجها في الـ UI لاحقاً
+
+  if (risk >= 75) {
+    level = "Critical";
+    color = "red";
+    action = "🚨 Isolation Required. Notify Infection Control Team immediately.";
+  } else if (risk >= 45) {
+    level = "Moderate";
+    color = "yellow";
+    action = "⚠️ Contact Precautions. Daily audit required.";
+  } else {
+    level = "Normal";
+    color = "blue";
+    action = "✅ Standard Precautions. Routine surveillance.";
+  }
+
+  return {
+    risk,
+    level,
+    action,
+    factors: riskFactors,
+    uiColor: color
+  };
+}
