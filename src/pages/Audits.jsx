@@ -128,8 +128,10 @@ const Audits = () => {
         </header>
 
         <div className="flex gap-4 mb-12">
-          <button onClick={() => setActiveTab('OR')} className={`flex-1 p-6 rounded-[2.5rem] border-2 transition-all font-black text-lg ${activeTab === 'OR' ? 'border-blue-600 bg-blue-600 text-white shadow-xl scale-105' : 'border-transparent bg-white shadow-md opacity-40'}`}>🏥 أوديت العمليات</button>
-          <button onClick={() => setActiveTab('HH')} className={`flex-1 p-6 rounded-[2.5rem] border-2 transition-all font-black text-lg ${activeTab === 'HH' ? 'border-blue-600 bg-blue-600 text-white shadow-xl scale-105' : 'border-transparent bg-white shadow-md opacity-40'}`}>🧼 غسيل الأيدي</button>
+         <button onClick={() => setActiveTab('OR')} className={`flex-1 p-6 rounded-[2.5rem] border-2 transition-all font-black text-lg ${activeTab === 'OR' ? 'border-blue-600 bg-blue-600 text-white shadow-xl scale-105' : 'border-transparent bg-white shadow-md opacity-40'}`}> OR Audit</button>
+         <button onClick={() => setActiveTab('HH')} className={`flex-1 p-6 rounded-[2.5rem] border-2 transition-all font-black text-lg ${activeTab === 'HH' ? 'border-blue-600 bg-blue-600 text-white shadow-xl scale-105' : 'border-transparent bg-white shadow-md opacity-40'}`}>Hand Hygiene</button>
+
+
         </div>
 
         <div className="mb-16">

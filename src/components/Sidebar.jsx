@@ -35,7 +35,6 @@ const Sidebar = () => {
         </svg>
       ) 
     },
-    // --- العنصر الجديد المضاف: إدارة المخالفات ---
     { 
       nameEn: 'Violations Admin',
       nameAr: 'إدارة المخالفات',
@@ -43,6 +42,17 @@ const Sidebar = () => {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ) 
+    },
+    // --- العنصر الجديد: لوحة الشرف ---
+    { 
+      nameEn: 'Staff Honor Roll',
+      nameAr: 'لوحة الشرف',
+      path: '/staff-scores', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
         </svg>
       ) 
     },
@@ -91,7 +101,6 @@ const Sidebar = () => {
   return (
     <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto" dir="ltr">
       <div className="p-8">
-        {/* Logo Section */}
         <div className="flex items-center gap-3 mb-10">
           <div className="w-10 h-10 bg-blue-700 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 shrink-0">
             <span className="text-white font-black text-xl tracking-tighter">SU</span>
@@ -102,7 +111,6 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* Navigation Menu */}
         <nav className="space-y-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -134,7 +142,6 @@ const Sidebar = () => {
         </nav>
       </div>
 
-      {/* Footer Status Card */}
       <div className="mt-auto p-8">
         <div className="bg-slate-900 rounded-[2rem] p-5 relative overflow-hidden group">
           <div className="relative z-10">

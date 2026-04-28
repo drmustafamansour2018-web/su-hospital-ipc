@@ -9,6 +9,7 @@ import PatientList from './pages/PatientList';
 import HAIForm from './components/HAIForm'; 
 import Reports from './components/Reports'; 
 import ViolationsPage from './pages/ViolationsPage'; 
+import StaffScores from './pages/StaffScores';
 
 function App() {
   // 1. نظام حفظ الوضع الليلي في المتصفح
@@ -77,7 +78,7 @@ function App() {
               <Route path="/reports" element={<Reports />} />
               <Route path="/history" element={<History />} />
               <Route path="/audits" element={<Audits />} />
-
+<Route path="/staff-scores" element={<StaffScores />} />
               <Route path="*" element={
                 <div className="flex flex-col items-center justify-center h-full font-black text-blue-900 dark:text-blue-400">
                    <h1 className="text-6xl">404</h1>

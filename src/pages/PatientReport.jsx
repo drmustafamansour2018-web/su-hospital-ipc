@@ -10,7 +10,7 @@ export default function PatientReport({ patientId, onBack }) {
 
   useEffect(() => {
     if (!patientId) return;
-    const patientRef = ref(db, `patients/${patientId}`);
+    const patientRef = ref(db, `patients_infections/${patientId}`);
     const unsubscribe = onValue(patientRef, (snapshot) => {
       setPatient(snapshot.val());
       setLoading(false);
